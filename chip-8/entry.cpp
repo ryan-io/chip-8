@@ -3,8 +3,12 @@
 
 #include "raylib.h"
 #include <fstream>
+#include <iostream>
 
 /// Reference: https://austinmorlan.com/posts/chip8_emulator/#16-8-bit-registers
+
+namespace Emulation
+{
 
 #pragma region Definitions
 
@@ -43,8 +47,9 @@ using OpCode = uint16_t;
 // Timers are relatively small and only need to hold values 0-255
 using TimerRegister = uint8_t;
 
-constexpr auto DISPAY_WIDTH = 64;
-constexpr auto DISPLAY_HEIGHT = 32;
+constexpr char const * CHIP8_TITLE = "CHIP-8 Emulator";
+constexpr auto CHIP8_DISPAY_WIDTH = 64;
+constexpr auto CHIP8_DISPLAY_HEIGHT = 32;
 /// Chip-8 has a 64x32 monochrome display
 ///	Each pixel is either on or off; only a single bit is required to represent each pixel
 /// There are two types of pixels:
@@ -55,7 +60,7 @@ constexpr auto DISPLAY_HEIGHT = 32;
 ///		* Sprite Pixel Off XOR Display Pixel On = Display Pixel On
 ///		* Sprite Pixel On XOR Display Pixel Off = Display Pixel On
 ///		* Sprite Pixel On XOR Display Pixel On = Display Pixel Off
-using DisplayMemory = std::array<uint32_t, DISPAY_WIDTH * DISPLAY_HEIGHT>;
+using DisplayMemory = std::array<uint32_t, CHIP8_DISPAY_WIDTH *CHIP8_DISPLAY_HEIGHT>;
 
 constexpr auto ROOT_REGISTER_ADDRESS = 0x200;
 /// Chip-8 has 16 general purpose registers
@@ -82,6 +87,20 @@ class Chip8
 {
 public:
 	/// <summary>
+	/// Default constructor
+	/// </summary>
+	Chip8 ()
+	{
+		// Initialize the program counter to the root register address
+		_programCounter = ROOT_REGISTER_ADDRESS;
+	}
+
+	/// <summary>
+	/// Default destructor
+	/// </summary>
+	~Chip8 () = default;
+
+	/// <summary>
 	/// Load ROM into memory
 	/// Includes all the instructions for the game
 	/// </summary>
@@ -94,6 +113,7 @@ public:
 		if (!stream.is_open ())
 		{
 			// TODO: Error handling
+			std::cout << "Could not open stream.\n";
 			return;
 		}
 
@@ -101,16 +121,18 @@ public:
 		// since the stream is opened with std::ios::ate, the file pointer is at the end of the file
 		// this gives us the size of the file
 		std::streampos contentSize = stream.tellg ();
-		
-		if (contentSize > 4096)
+
+		if (contentSize <= 4096)
 		{
-
-		// go back to the beginning of the file
+			// go back to the beginning of the file
 			stream.seekg (0, std::ios::beg);
-			// fill the buffer
+			// fill the buffer, this is one of the very very limited appropriate use cases for reinterpret_cast
 			stream.read (reinterpret_cast<char *>(&_memory), contentSize);
-
-			//
+			std::cout << "Loaded ROM: " << path << std::endl;
+		}
+		else
+		{
+			std::cout << "ROM is too large to load into memory.\n";
 		}
 	}
 
@@ -136,21 +158,39 @@ private:
 	OpCode _opcode{};
 };
 
+}
+
 #pragma endregion
 
 int main (int argc, char *argv[])
 {
-		// Initialization
-	//--------------------------------------------------------------------------------------
-	const int screenWidth = 800;
-	const int screenHeight = 600;
+	Emulation::Chip8 chip8{};
+	chip8.LoadROM ("specification.txt");
+	Vector2 position = { 800/2, 400/2};
 
-	InitWindow (screenWidth, screenHeight, "Chip-8 Emulator");
+	// Initialization
+	InitWindow (800, 400, Emulation::CHIP8_TITLE);
 
 	SetTargetFPS (60);               
 
+	// Main loop
 	while (!WindowShouldClose ())    
 	{
+		// NOTE: pixel indices go from left to right, top to bottom
+		// Update
+		if (IsKeyDown (KEY_D)) position.x += 2.0f;
+		if (IsKeyDown (KEY_A)) position.x -= 2.0f;
+		if (IsKeyDown (KEY_W)) position.y -= 2.0f;
+		if (IsKeyDown (KEY_S)) position.y += 2.0f;
+
+		// Draw
+		BeginDrawing ();
+
+		ClearBackground (RAYWHITE);
+		DrawCircleV (position, 50, MAROON);
+
+		EndDrawing ();
 	}
+
 	return 0;
 }
