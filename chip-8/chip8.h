@@ -101,6 +101,9 @@ namespace Emulation
 		/// <summary>
 		/// Load ROM into memory
 		/// Includes all the instructions for the game
+		/// Throws:
+		///		* RomNoDataError -> corrupted file
+		/// 	* RomTooLargeError -> file too large
 		/// </summary>
 		void LoadROM (const char *path)
 		{
@@ -110,27 +113,41 @@ namespace Emulation
 
 			if (!stream.is_open ())
 			{
-				// TODO: Error handling
+				// TODO: error handling
 				std::cout << "Could not open stream.\n";
 				return;
 			}
 
-			// this gets the size of the file (this is really the current position of the file pointer)
-			// since the stream is opened with std::ios::ate, the file pointer is at the end of the file
-			// this gives us the size of the file
-			std::streampos contentSize = stream.tellg ();
-
-			if (contentSize <= 4096)
+			try
 			{
+				// this gets the size of the file (this is really the current position of the file pointer)
+				// since the stream is opened with std::ios::ate, the file pointer is at the end of the file
+				// this gives us the size of the file
+				std::streampos contentSize = stream.tellg ();
+
+				if (contentSize <= 0)
+				{
+					throw RomNoDataError{};
+				}
+
+				if (contentSize > MemoryFootPrint)
+				{
+					throw RomTooLargeError{};
+				}
+
 				// go back to the beginning of the file
 				stream.seekg (0, std::ios::beg);
 				// fill the buffer, this is one of the very very limited appropriate use cases for reinterpret_cast
 				stream.read (reinterpret_cast<char *>(&_memory), contentSize);
-				std::cout << "Loaded ROM: " << path << std::endl;
 			}
-			else
+			catch (const std::exception &e)
 			{
-				std::cout << "ROM is too large to load into memory.\n";
+				if (stream.is_open ())
+				{
+					stream.close ();
+				}
+
+				throw e;
 			}
 		}
 
@@ -154,6 +171,23 @@ namespace Emulation
 		TimerRegister _soundTimer{};
 
 		OpCode _opcode{};
+
+		class RomNoDataError : public std::exception
+		{
+		public:
+			const char *what () const noexcept override
+			{
+				return "No data was loaded from the ROM.";
+			}
+		};
+
+		class RomTooLargeError : public std::exception
+		{
+			const char *what () const noexcept override
+			{
+				return "The ROM is too large to fit in memory.";
+			}
+		};
 	};
 
 #pragma endregion
