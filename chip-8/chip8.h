@@ -110,7 +110,6 @@ namespace Emulation
 
 #pragma endregion
 
-
 #pragma region CHIP-8
 
 	/// Chip-8 emulator
@@ -205,7 +204,7 @@ namespace Emulation
 		/// Returns a value between 0-255
 		/// </summary>
 		/// <returns>Unsigned integer between 0 and 255</returns>
-		uint8_t GetRandomByte ()
+		unsigned short GetRandomByte ()
 		{
 			return _randomDistribution (_mersenneTwister);
 		}
@@ -238,7 +237,7 @@ namespace Emulation
 
 		// uniform distribution to put a constraint on the range of numbers generated
 		// again, reference: https://www.learncpp.com/cpp-tutorial/generating-random-numbers-using-mersenne-twister/
-		std::uniform_int_distribution<uint8_t> _randomDistribution{};
+		std::uniform_int_distribution<unsigned short> _randomDistribution{};
 
 	#pragma endregion
 
