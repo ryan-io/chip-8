@@ -2,6 +2,8 @@
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <random>
+#include <chrono>
 
 /// Reference: https://austinmorlan.com/posts/chip8_emulator/#16-8-bit-registers
 
@@ -124,11 +126,15 @@ namespace Emulation
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		Chip8 ()
-		{
+		Chip8 () 
 			// Initialize the program counter to the root register address
-			_programCounter = ROOT_REGISTER_ADDRESS;
-
+			: _programCounter{ ROOT_REGISTER_ADDRESS }, 
+			// Initialize the random number generator
+			// CHIP-8 has an instruciton that places a random number into a register
+			// random number needs to fit in a byte
+			// the initialization values (0 & 255) are inclusive
+			_randomDistribution { 0U, 255U }
+		{
 			// Load font set into memory
 			for (auto i = 0; i < FONT_SET_SIZE_BYTES; i++)
 			{
@@ -195,6 +201,15 @@ namespace Emulation
 		}
 
 	private:
+		/// <summary>
+		/// Returns a value between 0-255
+		/// </summary>
+		/// <returns>Unsigned integer between 0 and 255</returns>
+		uint8_t GetRandomByte ()
+		{
+			return _randomDistribution (_mersenneTwister);
+		}
+
 		Memory _memory{};
 
 		Registers _registers{};
@@ -215,6 +230,20 @@ namespace Emulation
 
 		OpCode _opcode{};
 
+	#pragma region Random Number Generation
+
+		// https://www.learncpp.com/cpp-tutorial/generating-random-numbers-using-mersenne-twister/
+		// Mersenne Twister random number generator
+		std::mt19937 _mersenneTwister{ static_cast<std::mt19937::result_type>(std::chrono::steady_clock::now ().time_since_epoch ().count ()) };
+
+		// uniform distribution to put a constraint on the range of numbers generated
+		// again, reference: https://www.learncpp.com/cpp-tutorial/generating-random-numbers-using-mersenne-twister/
+		std::uniform_int_distribution<uint8_t> _randomDistribution{};
+
+	#pragma endregion
+
+	#pragma region Errors
+
 		class RomNoDataError : public std::exception
 		{
 		public:
@@ -231,6 +260,9 @@ namespace Emulation
 				return "The ROM is too large to fit in memory.";
 			}
 		};
+
+	#pragma endregion
+
 	};
 
 #pragma endregion
