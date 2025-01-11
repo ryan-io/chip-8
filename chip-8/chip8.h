@@ -10,7 +10,7 @@ namespace Emulation
 
 #pragma region Definitions
 
-	constexpr unsigned MemoryFootPrint = 4096;
+	constexpr unsigned MEMORY_FOOTPRINT = 4096;
 	/// Chip-8 has 4K memory
 	///	0x000-0x1FF: Originally reserved for the CHIP-8 interpreter,
 	///	We will not write to this memory except for a few locations:
@@ -18,7 +18,7 @@ namespace Emulation
 	///		ROMs will look for these characters in this location
 	///	0x200-0xFFF: ROM instructions stored starting at 0x200
 	///		Anything after the memory used in 0x200-0x*** is free for use
-	using Memory = std::array<uint8_t, MemoryFootPrint>;
+	using Memory = std::array<uint8_t, MEMORY_FOOTPRINT>;
 
 	/// Chip-8 has 16-bit index register
 	///	The largest instruction memory address is 0xFFF
@@ -28,10 +28,11 @@ namespace Emulation
 	/// Register to hold the address of the next instruction to run (must be able to hold 0xFFF)
 	using ProgramCounter = uint16_t;
 
+	constexpr uint8_t STACK_SIZE = 16;
 	using StackPointer = uint8_t;
 	/// Stack is used to store the address that the interpreter
 	///	This class will maintain a stack pointer
-	using Stack = std::array<uint16_t, 16>;
+	using Stack = std::array<uint16_t, STACK_SIZE>;
 
 	/// Chip-8 has 35 opcodes
 	/// Each opcode is 2 bytes long
@@ -72,15 +73,51 @@ namespace Emulation
 
 #pragma endregion
 
+#pragma region Fonts
+
+	constexpr uint8_t FONT_SET_SIZE_BYTES = 80; // 16 characters, 5 bytes each = 80 byte footprint
+	constexpr uint8_t FONT_SET_START_ADDRESS = 0x50;
+	/// <summary>
+	/// ROMs require sixteen characters to allow writing to the screen
+	/// These need to be loaded into memory
+	/// Each character is 5 bytes
+	/// Each bit represents a pixel
+	///		* 0 = off
+	/// 	* 1 = on
+	/// Example: Letter 'F' is represented by 0xF0, 0x80, 0xF0, 0x80, 0x80
+	/// </summary>
+	constexpr std::array<uint8_t, FONT_SET_SIZE_BYTES> FONT_SET
+	{
+		0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+		0x20, 0x60, 0x20, 0x20, 0x70, // 1
+		0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+		0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+		0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+		0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+		0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+		0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+		0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+		0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+		0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+		0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+		0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+		0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+		0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+		0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+	};
+
+#pragma endregion
+
+
 #pragma region CHIP-8
 
-/// Chip-8 emulator
-/// Registers are dedicated locations on a CPU used to store data
-///	These are small, 4096 bytes of memory (0x000 to 0xFFF)
-///	Operations will often involve loading data from memory into these registers
-///	The results are then stored back into memory
-///	The thought process here is all 4kB will act as a single register
-///	Random access memory will be used as little as possible
+	/// Chip-8 emulator
+	/// Registers are dedicated locations on a CPU used to store data
+	///	These are small, 4096 bytes of memory (0x000 to 0xFFF)
+	///	Operations will often involve loading data from memory into these registers
+	///	The results are then stored back into memory
+	///	The thought process here is all 4kB will act as a single register
+	///	Random access memory will be used as little as possible
 	class Chip8
 	{
 	public:
@@ -91,6 +128,12 @@ namespace Emulation
 		{
 			// Initialize the program counter to the root register address
 			_programCounter = ROOT_REGISTER_ADDRESS;
+
+			// Load font set into memory
+			for (auto i = 0; i < FONT_SET_SIZE_BYTES; i++)
+			{
+				_memory[FONT_SET_START_ADDRESS + 1] = FONT_SET[i];
+			}
 		}
 
 		/// <summary>
@@ -130,7 +173,7 @@ namespace Emulation
 					throw RomNoDataError{};
 				}
 
-				if (contentSize > MemoryFootPrint)
+				if (contentSize > MEMORY_FOOTPRINT)
 				{
 					throw RomTooLargeError{};
 				}
